@@ -42,10 +42,11 @@ import haxe.ds.ObjectMap;
 class SkeletonRenderer extends Sprite {
     var skeleton:Skeleton;
 
-    #if (flash || cpp || neko)
+    #if (cpp || neko)
     var vs:Vector<Float>;
     var idx:Vector<Int>;
     var uvt:Vector<Float>;
+    var colors:Vector<Int>;
     var bd:BitmapData;
     var filled:Bool = false;
 
@@ -56,13 +57,15 @@ class SkeletonRenderer extends Sprite {
         vs = new Vector<Float>();
         idx = new Vector<Int>();
         uvt = new Vector<Float>();
+        colors = new Vector<Int>();
     }
 
     public function clearBuffers () {
 
-        vs = new Vector<Float>();
-        idx = new Vector<Int>();
-        uvt = new Vector<Float>();
+        vs.length = 0;
+        idx.length = 0;
+        uvt.length = 0;
+        colors.length = 0;
         filled = false;
     }
 
@@ -100,6 +103,9 @@ class SkeletonRenderer extends Sprite {
                     uvt[vi+2] = vertices[RegionAttachment.U2]; uvt[vi+3] = vertices[RegionAttachment.V2];
                     uvt[vi+4] = vertices[RegionAttachment.U3]; uvt[vi+5] = vertices[RegionAttachment.V3];
                     uvt[vi+6] = vertices[RegionAttachment.U4]; uvt[vi+7] = vertices[RegionAttachment.V4];
+
+                    var c:Int = slot.color.toInt();
+                    colors[ii+0] = colors[ii+1] = colors[ii+2] = colors[ii+3] = colors[ii+4] = colors[ii+5] = c;
                 }
                 vi += 8;
                 vii += 4;
@@ -108,7 +114,7 @@ class SkeletonRenderer extends Sprite {
         }
         filled = true;
         if(bd != null){
-            graphics.beginBitmapFill(bd, null, true, true);
+            graphics.beginBitmapFill(bd, null, true, true, colors);
             graphics.drawTriangles(vs, idx, uvt, TriangleCulling.NONE);
             graphics.endFill();
         }
@@ -131,18 +137,18 @@ class SkeletonRenderer extends Sprite {
     // TODO fix flipx
     public function draw () {
         graphics.clear();
-		var drawOrder:Array<Slot> = skeleton.drawOrder;
-		var flipX:Int = (skeleton.flipX) ? -1 : 1;
-		var flipY:Int = (skeleton.flipY) ? 1 : -1;
-		var flip:Int = flipX * flipY;
+        var drawOrder:Array<Slot> = skeleton.drawOrder;
+        var flipX:Int = (skeleton.flipX) ? -1 : 1;
+        var flipY:Int = (skeleton.flipY) ? 1 : -1;
+        var flip:Int = flipX * flipY;
         var skeletonX:Float = skeleton.getX();
         var skeletonY:Float = skeleton.getY();
-		for (slot in drawOrder) {
-			var attachment:Attachment = slot.attachment;
-			if (Std.is(attachment, RegionAttachment)) {
-				var regionAttachment:RegionAttachment = cast(attachment, RegionAttachment);
-				regionAttachment.updateVertices(slot);
-				var vertices = regionAttachment.getVertices();
+        for (slot in drawOrder) {
+            var attachment:Attachment = slot.attachment;
+            if (Std.is(attachment, RegionAttachment)) {
+                var regionAttachment:RegionAttachment = cast(attachment, RegionAttachment);
+                regionAttachment.updateVertices(slot);
+                var vertices = regionAttachment.getVertices();
 
                 var wrapper:Sprite = get(regionAttachment);
 
@@ -155,11 +161,22 @@ class SkeletonRenderer extends Sprite {
                 wrapper.rotation = -(bone.worldRotation + regionAttachment.rotation) * flip;
                 wrapper.scaleX = (bone.worldScaleX + regionAttachment.scaleX - 1) * flipX;
                 wrapper.scaleY = (bone.worldScaleY + regionAttachment.scaleY - 1) * flipY;
+                var color:Color = slot.color;
+                #if flash
+                var ct:flash.geom.ColorTransform = wrapper.transform.colorTransform;
+                ct.redMultiplier = color.r;
+                ct.greenMultiplier = color.g;
+                ct.blueMultiplier = color.b;
+                ct.alphaMultiplier = color.a;
+                wrapper.transform.colorTransform = ct;
+                #else
+                wrapper.alpha = color.a;
+                #end
 
                 wrapper.visible = true;
             }
-		}
-	}
+        }
+    }
 
     public function get (regionAttachment:RegionAttachment):Sprite {
         var wrapper:Sprite = sprites.get(regionAttachment);

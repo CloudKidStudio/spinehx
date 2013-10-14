@@ -30,7 +30,19 @@ class Color {
         this.a = MathUtils.clamp(a, 0, 1);
     }
 
-    public static function valueOf(s) {return new Color(0, 0, 0, 0);}
+    public static function valueOf(s:String):Color
+    {
+        return new Color(
+            Std.parseInt("0x" + s.substr(0, 2)) / 255, 
+            Std.parseInt("0x" + s.substr(2, 2)) / 255, 
+            Std.parseInt("0x" + s.substr(4, 2)) / 255, 
+            Std.parseInt("0x" + s.substr(6, 2)) / 255);
+    }
+
+    public function toInt():Int
+    {
+        return Std.int(a * 255) << 24 | Std.int(r * 255) << 16 | Std.int(g * 255) << 8 | Std.int(b * 255);
+    }
 
     public function new(r, g, b, a) {
         set(r, g, b, a);
