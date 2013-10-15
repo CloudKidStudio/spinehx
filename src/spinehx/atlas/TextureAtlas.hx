@@ -79,10 +79,53 @@ class TextureAtlasData {
     private var tuple:Array<String>;
 
     public function new (packFileData:String, imagesDir:String, flip:Bool) {
-        tuple = [null, null, null, null];
         pages = new Array<Page>();
         regions = new Array<Region>();
 
+        if(packFileData.charAt(0) == "{")//json, assume texture atlas in JSON Hash format (from texture packer or equivalent)
+            parseJsonAtlas(packFileData, imagesDir, flip);
+        else//use the Spine atlas text format
+            parseSpineAtlas(packFileData, imagesDir, flip);
+    }
+
+    private function parseJsonAtlas(packFileData:String, imagesDir:String, flip:Bool):Void
+    {
+        var json:Dynamic = haxe.Json.parse(packFileData);
+        //create a Page for the texture
+        var file:String = imagesDir + json.meta.image;
+        var format:String = json.meta.format;
+        var min:String = "Nearest";
+        var mag:String = min;
+        var repeatX:String = "ClampToEdge";
+        var repeatY:String = repeatX;
+        var pageImage:Page = new Page(file, false, format, min, mag, repeatX, repeatY);
+        pages.push(pageImage);
+        //set up all of the texture frames
+        var frames:Dynamic = json.frames;
+        var names = Reflect.fields(frames);
+        for(n in names)
+        {
+            var f:Dynamic = Reflect.field(frames, n);
+            var region = new Region();
+            region.page = pageImage;
+            region.left = f.frame.x;
+            region.top = f.frame.y;
+            region.width = f.frame.w;
+            region.height = f.frame.h;
+            region.name = n.substring(0, n.lastIndexOf("."));
+            region.rotate = f.rotated;
+            region.originalWidth = f.sourceSize.w;
+            region.originalHeight = f.sourceSize.h;
+            region.offsetX = f.spriteSourceSize.x;
+            region.offsetY = f.spriteSourceSize.y;
+            if (flip) region.flip = true;
+            regions.push(region);
+        }
+    }
+
+    private function parseSpineAtlas(packFileData:String, imagesDir:String, flip:Bool):Void
+    {
+        tuple = [null, null, null, null];
         var reader = new StringInput(packFileData);// new BufferedReader(new InputStreamReader(packFile.read()), 64);
         try {
             var pageImage:Page = null;
